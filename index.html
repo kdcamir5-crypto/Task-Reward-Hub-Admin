@@ -12,9 +12,26 @@
 @media(max-width:960px){.sidebar{transform:translateX(-100%);width:260px;box-shadow:20px 0 45px #182b4a12}.sidebar.open{transform:translateX(0)}.main{margin-left:0}.menu-toggle{display:grid}.overlay.show{display:block;position:fixed;inset:0;background:#18243a40;backdrop-filter:blur(2px);z-index:15}.dashboard-grid{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.topbar{height:72px}.section-summary{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:600px){.topbar{padding:0 15px;gap:10px;height:66px}.top-title{font-size:15px}.eyebrow{font-size:9px}.top-right{gap:7px}.search input{width:38px;padding-left:35px;border-color:transparent;background:transparent}.search input:focus{position:absolute;right:0;top:0;width:min(235px,calc(100vw - 125px));background:#fff;border-color:#b8d0ff;z-index:2}.search{width:38px;height:40px}.live-pill{padding:7px 8px;font-size:0;gap:0}.live-dot{height:8px;width:8px}.content{padding:22px 14px 30px}.page-heading{align-items:flex-start;flex-direction:column;margin-bottom:19px;gap:14px}.page-heading h1{font-size:23px}.page-heading p{font-size:12px}.heading-actions{width:100%}.heading-actions .btn{flex:1}.metrics{gap:10px}.metric{padding:14px;border-radius:15px}.metric-icon{height:35px;width:35px;border-radius:11px}.metric-icon svg{height:17px;width:17px}.trend{font-size:9px;padding:4px 5px}.metric-label{font-size:11px;margin-top:13px}.metric-value{font-size:21px}.metric-foot{font-size:9px}.panel-head{padding:17px 15px 13px}.chart-area{padding:0 10px 14px}.chart-svg{height:185px}.activity-list{padding:0 15px 10px}.activity-time{font-size:9px}.panel{border-radius:15px}.section-summary{grid-template-columns:1fr 1fr;gap:10px}.summary-card{padding:15px}.summary-card strong{font-size:21px}.settings-grid{grid-template-columns:1fr}.setting-card{padding:17px}.table-footer{padding:12px 14px}.top-right>.icon-btn{height:37px;width:37px}.brand{padding-bottom:22px}.page-heading .heading-actions{flex-wrap:wrap}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
-</style>
+
+.auth-gate{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:22px;background:rgba(245,247,251,.97);backdrop-filter:blur(12px)}
+.auth-card{width:min(100%,430px);background:#fff;border:1px solid #e5ebf4;border-radius:24px;padding:32px;box-shadow:0 24px 80px rgba(31,57,97,.13);animation:rise .35s both}
+.auth-brand{display:flex;align-items:center;gap:12px;margin-bottom:26px}.auth-brand .brand-mark{flex-shrink:0}
+.auth-card h1{font-size:24px;letter-spacing:-.7px;margin:0 0 8px}.auth-card p{color:#7b879b;font-size:13px;margin:0 0 22px}
+.auth-field{display:grid;gap:7px;margin:14px 0}.auth-field label{font-size:12px;font-weight:750;color:#52617a}.auth-field input{width:100%;height:46px;padding:0 13px;border:1px solid #dfe6f0;border-radius:11px;background:#fbfcff;color:#18243a}
+.auth-submit{width:100%;height:46px;margin-top:10px;border:0;border-radius:11px;background:linear-gradient(110deg,#4388ff,#2868ed);color:white;font-weight:800;box-shadow:0 7px 18px #3478f62a}
+.auth-message{font-size:12px;color:#d54d5c;margin-top:14px;min-height:18px}.auth-note{font-size:11px;color:#8b97aa;margin-top:18px;line-height:1.6}#authGate[hidden]{display:none!important}
+
 </head>
 <body>
+<div class="auth-gate" id="authGate">
+<form class="auth-card" id="loginForm">
+<div class="auth-brand"><div class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5z"/><path d="m8 12 2.5 2.5L16.5 8"/></svg></div><div><div class="brand-name">Task Reward Hub</div><div class="brand-sub">ADMIN CONTROL CENTER</div></div></div>
+<h1>Administrator sign in</h1><p>Use your existing Firebase Authentication account. Only accounts with role = admin in Firestore can enter.</p>
+<div class="auth-field"><label for="adminEmail">Email address</label><input id="adminEmail" type="email" autocomplete="username" required placeholder="Admin email"></div>
+<div class="auth-field"><label for="adminPassword">Password</label><input id="adminPassword" type="password" autocomplete="current-password" required placeholder="Password"></div>
+<button class="auth-submit" id="loginSubmit" type="submit">Sign in securely</button><div class="auth-message" id="authMessage" role="status"></div>
+<div class="auth-note">Password handling is managed by Firebase Authentication. This page does not save your password.</div>
+</form></div>
 <div class="app">
 <aside class="sidebar" id="sidebar">
   <div class="brand"><div class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5z"/><path d="m8 12 2.5 2.5L16.5 8"/></svg></div><div><div class="brand-name">Task Reward Hub</div><div class="brand-sub">ADMIN CONTROL CENTER</div></div></div>
@@ -35,15 +52,73 @@
 <main class="main">
 <header class="topbar">
  <div class="top-left"><button class="icon-btn menu-toggle" id="menuToggle" aria-label="Open menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><div><div class="eyebrow">TASK REWARD HUB / ADMIN</div><div class="top-title" id="topTitle">Overview</div></div></div>
- <div class="top-right"><div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="globalSearch" placeholder="Search anything..." aria-label="Search current table"></div><button class="icon-btn" id="notificationBtn" aria-label="Notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><span class="notification-dot"></span></button><div class="live-pill"><span class="live-dot"></span>Preview</div></div>
+ <div class="top-right"><div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="globalSearch" placeholder="Search anything..." aria-label="Search current table"></div><button class="icon-btn" id="notificationBtn" aria-label="Notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><span class="notification-dot"></span></button><button class="btn" id="signOutBtn" style="display:none">Sign out</button><div class="live-pill"><span class="live-dot"></span><span id="connectionLabel">Sign in required</span></div></div>
 </header>
 <div class="content" id="content"></div>
 </main>
 </div>
 <div class="toast hidden" id="toast" role="status"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></svg><span id="toastText"></span></div>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script>
+const firebaseConfig = {
+ apiKey:"AIzaSyB7aAoaiSvYjfj9HWdY-TmJmfeDBF8stiY",
+ authDomain:"reward-hub-bd.firebaseapp.com",
+ databaseURL:"https://reward-hub-bd-default-rtdb.firebaseio.com",
+ projectId:"reward-hub-bd",
+ storageBucket:"reward-hub-bd.firebasestorage.app",
+ messagingSenderId:"673282864149",
+ appId:"1:673282864149:web:83e6ddcd0f7a99f8e18a1c"
+};
+firebase.initializeApp(firebaseConfig);
+const auth=firebase.auth(), db=firebase.firestore();
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});
+let liveConnected=false, currentAdmin=null;
+let liveCounts={users:0,deposits:0,withdrawals:0,tasks:0,bots:0,codes:0};
+function setConnection(v){const e=document.getElementById('connectionLabel');if(e)e.textContent=v;}
+function getField(d,keys,fallback){for(const k of keys)if(d[k]!==undefined&&d[k]!==null&&d[k]!=='')return d[k];return fallback||'';}
+function formatMoney(v){return '৳'+Number(v||0).toLocaleString('en-BD',{maximumFractionDigits:2});}
+function liveStatus(v){const s=String(v||'pending').toLowerCase();if(['paid','approved','completed','active','verified'].includes(s))return 'Approved';if(['rejected','declined','failed','blocked','disabled','suspended'].includes(s))return 'Rejected';return s==='pending'?'Pending':s.charAt(0).toUpperCase()+s.slice(1);}
+async function fetchDocs(name){const snap=await db.collection(name).get();return snap.docs.map(doc=>Object.assign({id:doc.id},doc.data()));}
+async function loadLiveData(){
+ if(!currentAdmin)return;
+ setConnection('Loading data…');
+ const results=await Promise.all([fetchDocs('users'),fetchDocs('walletDeposits'),fetchDocs('withdrawals'),fetchDocs('submissions'),fetchDocs('botPurchaseRequests'),fetchDocs('botRedeemCodes')]);
+ const names=['users','deposits','withdrawals','tasks','bots'];
+ const mapped=[
+  results[0].map(d=>({name:getField(d,['name','full_name','displayName','userName'],'Unnamed user'),email:getField(d,['email','phone','telegram'],d.uid||d.id),id:d.id,amount:formatMoney(d.balance),status:liveStatus(d.status||'active'),tone:'#e8f1ff',color:'#3974d9',raw:d})),
+  results[1].map(d=>({name:getField(d,['userName','name','email'],'User '+String(d.uid||'').slice(0,8)),email:getField(d,['type','method'],'Payment')+' · '+getField(d,['senderNumber','number','trxId'],'Details unavailable'),id:d.id,amount:formatMoney(d.amount),status:liveStatus(d.status),tone:'#e8f1ff',color:'#3974d9',raw:d})),
+  results[2].map(d=>({name:getField(d,['userName','name','email'],'User '+String(d.uid||'').slice(0,8)),email:getField(d,['type'],'Payout')+' · '+getField(d,['number'],'Number unavailable'),id:d.id,amount:formatMoney(d.amount),status:liveStatus(d.status),tone:'#e7f8ef',color:'#18865b',raw:d})),
+  results[3].map(d=>({name:getField(d,['email','userName'],'User '+String(d.uid||'').slice(0,8)),email:getField(d,['taskTitle','taskId'],'Task submission'),id:d.id,amount:formatMoney(d.reward),status:liveStatus(d.status),tone:'#fff1e1',color:'#c27a17',raw:d})),
+  results[4].map(d=>({name:getField(d,['userName','name','email'],'User '+String(d.uid||'').slice(0,8)),email:getField(d,['botName','packageName','botId'],'Bot package'),id:d.id,amount:formatMoney(getField(d,['price','amount'],0)),status:liveStatus(d.status),tone:'#f0eaff',color:'#7956d8',raw:d}))
+ ];
+ names.forEach((n,i)=>demo[n].splice(0,demo[n].length,...mapped[i]));
+ state.codes=results[5].map(d=>({code:getField(d,['code'],d.id),bot:getField(d,['botName','botId'],'Bot package'),created:d.createdAt&&d.createdAt.toDate?d.createdAt.toDate().toLocaleString():'—',expiry:d.expiresAtMs?new Date(Number(d.expiresAtMs)).toLocaleString():'—',status:d.used?'Used':(Number(d.expiresAtMs||0)<Date.now()?'Expired':'Active')}));
+ liveCounts={users:results[0].length,deposits:results[1].length,withdrawals:results[2].length,tasks:results[3].length,bots:results[4].length,codes:results[5].length};
+ liveConnected=true;setConnection('Live Firebase');
+ document.getElementById('signOutBtn').style.display='inline-flex';
+ document.querySelector('.profile-name').textContent=currentAdmin.email||'Administrator';
+ document.querySelector('.profile-role').textContent='Verified administrator';
+ document.querySelector('.avatar').textContent=(currentAdmin.email||'AD').slice(0,2).toUpperCase();
+ render();syncLiveUi();
+}
+document.getElementById('loginForm').addEventListener('submit',async e=>{
+ e.preventDefault();const msg=document.getElementById('authMessage'),btn=document.getElementById('loginSubmit');
+ msg.textContent='Checking account and admin permissions…';btn.disabled=true;btn.textContent='Signing in…';
+ try{await auth.signInWithEmailAndPassword(document.getElementById('adminEmail').value.trim(),document.getElementById('adminPassword').value);}
+ catch(err){msg.textContent=err.code==='auth/invalid-credential'?'Email or password is incorrect.':(err.message||'Sign in failed.');btn.disabled=false;btn.textContent='Sign in securely';}
+});
+auth.onAuthStateChanged(async user=>{
+ const gate=document.getElementById('authGate'),msg=document.getElementById('authMessage');
+ if(!user){currentAdmin=null;liveConnected=false;gate.hidden=false;setConnection('Sign in required');document.getElementById('signOutBtn').style.display='none';return;}
+ try{const profile=await db.collection('users').doc(user.uid).get();if(!profile.exists||profile.data().role!=='admin'){await auth.signOut();msg.textContent='Access denied. This account does not have the admin role in Firestore.';return;}
+ currentAdmin=user;gate.hidden=true;document.getElementById('loginSubmit').disabled=false;document.getElementById('loginSubmit').textContent='Sign in securely';await loadLiveData();}
+ catch(err){gate.hidden=false;msg.textContent='Could not verify admin role or read Firestore. Check Firestore rules. '+(err.message||'');setConnection('Connection error');}
+});
+document.getElementById('signOutBtn').addEventListener('click',()=>auth.signOut());
 const icon=(name)=>{const paths={users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',wallet:'<rect x="2" y="5" width="20" height="15" rx="3"/><path d="M2 10h20M7 15h3"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',bot:'<rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 4v4M9 13h.01M15 13h.01M9 17h6"/>',trend:'<path d="m3 17 6-6 4 4 8-9"/><path d="M15 6h6v6"/>',download:'<path d="M12 3v12m-5-5 5 5 5-5"/><path d="M5 19h14"/>',search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',check:'<path d="m5 12 4 4L19 6"/>',x:'<path d="m18 6-12 12M6 6l12 12"/>',eye:'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',plus:'<path d="M12 5v14M5 12h14"/>',ticket:'<path d="M3 7h18v4a2 2 0 0 0 0 4v2H3v-2a2 2 0 0 0 0-4z"/><path d="M13 7v10"/>',task:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>',settings:'<circle cx="12" cy="12" r="3"/><path d="M19 13.5a7 7 0 0 0 0-3l2-1.5-2-3.5-2.4 1a7 7 0 0 0-2.6-1.5L13.5 2h-3L10 5a7 7 0 0 0-2.6 1.5L5 5.5 3 9l2 1.5a7 7 0 0 0 0 3L3 15l2 3.5 2.4-1a7 7 0 0 0 2.6 1.5l.5 3h3l.5-3a7 7 0 0 0 2.6-1.5l2.4 1 2-3.5z"/>',arrow:'<path d="M7 17 17 7M7 7h10v10"/>',bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>',shield:'<path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11z"/><path d="m9 12 2 2 4-4"/>',refresh:'<path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.6 9a7 7 0 0 1 11.5-2L20 12M4 12l2.9 5a7 7 0 0 0 11.5-2"/>',help:'<circle cx="12" cy="12" r="9"/><path d="M9.6 9a2.5 2.5 0 1 1 4.3 1.7c-1.2 1.1-1.9 1.4-1.9 3"/><path d="M12 17h.01"/>',chart:'<path d="M3 3v18h18"/><path d="m7 14 4-4 4 4 6-8"/>',chevron:'<path d="m9 18 6-6-6-6"/>',users2:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 11h6M19 8v6"/>',file:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8"/>',copy:'<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>',spark:'<path d="m12 3 1.9 5.8L20 11l-6.1 2.2L12 19l-2-5.8L4 11l6-2.2z"/><path d="m19 14 1.1 2.9L23 18l-2.9 1.1L19 22l-1.1-2.9L15 18l2.9-1.1z"/>'};return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(paths[name]||paths.file)+'</svg>'};
-const demo={users:[{name:'Ayesha Rahman',email:'ayesha.r@example.com',id:'TRH-1048',amount:'৳1,240',status:'Active',tone:'#e8f1ff',color:'#3974d9'},{name:'Mohammad Hasan',email:'hasan.m@example.com',id:'TRH-1047',amount:'৳860',status:'Active',tone:'#e7f8ef',color:'#18865b'},{name:'Nusrat Jahan',email:'nusrat.j@example.com',id:'TRH-1046',amount:'৳2,110',status:'Pending',tone:'#fff1e1',color:'#c27a17'},{name:'Tanvir Ahmed',email:'tanvir.a@example.com',id:'TRH-1045',amount:'৳475',status:'Active',tone:'#f0eaff',color:'#7956d8'},{name:'Farzana Akter',email:'farzana.a@example.com',id:'TRH-1044',amount:'৳3,050',status:'Active',tone:'#ffeaf0',color:'#cf5277'}],deposits:[{name:'Ayesha Rahman',email:'bKash · 019•••2041',id:'DEP-2081',amount:'৳1,000',status:'Pending',tone:'#e8f1ff',color:'#3974d9'},{name:'Mohammad Hasan',email:'Nagad · 018•••6190',id:'DEP-2080',amount:'৳500',status:'Pending',tone:'#e7f8ef',color:'#18865b'},{name:'Nusrat Jahan',email:'bKash · 017•••8721',id:'DEP-2079',amount:'৳1,500',status:'Pending',tone:'#fff1e1',color:'#c27a17'},{name:'Tanvir Ahmed',email:'Nagad · 016•••5130',id:'DEP-2078',amount:'৳300',status:'Approved',tone:'#f0eaff',color:'#7956d8'}],withdrawals:[{name:'Farzana Akter',email:'bKash · 018•••9122',id:'WDR-1088',amount:'৳850',status:'Pending',tone:'#ffeaf0',color:'#cf5277'},{name:'Ayesha Rahman',email:'Nagad · 019•••2041',id:'WDR-1087',amount:'৳450',status:'Pending',tone:'#e8f1ff',color:'#3974d9'},{name:'Tanvir Ahmed',email:'bKash · 016•••5130',id:'WDR-1086',amount:'৳1,200',status:'Approved',tone:'#f0eaff',color:'#7956d8'}],tasks:[{name:'Mohammad Hasan',email:'Facebook page follow',id:'TSK-701',amount:'৳10',status:'Pending',tone:'#e7f8ef',color:'#18865b'},{name:'Nusrat Jahan',email:'Watch promotional video',id:'TSK-700',amount:'৳15',status:'Pending',tone:'#fff1e1',color:'#c27a17'},{name:'Ayesha Rahman',email:'Join Telegram channel',id:'TSK-699',amount:'৳8',status:'Approved',tone:'#e8f1ff',color:'#3974d9'}],bots:[{name:'Ayesha Rahman',email:'AI Pulse Bot v2 · Wallet',id:'BOT-501',amount:'৳50',status:'Pending',tone:'#e8f1ff',color:'#3974d9'},{name:'Tanvir Ahmed',email:'Quantum Core Pro · bKash',id:'BOT-500',amount:'৳100',status:'Pending',tone:'#f0eaff',color:'#7956d8'},{name:'Farzana Akter',email:'Neural Matrix Bot · Nagad',id:'BOT-499',amount:'৳200',status:'Approved',tone:'#ffeaf0',color:'#cf5277'}]};
+const demo={users:[],deposits:[],withdrawals:[],tasks:[],bots:[]};
 const state={page:'overview',period:'7 Days',filter:'All',query:'',codes:[],settings:{maintenance:false,taskSubmissions:true,botPurchases:true,withdrawals:true}};
 const content=document.getElementById('content');const toast=document.getElementById('toast');let toastTimer;
 function notify(message){document.getElementById('toastText').textContent=message;toast.classList.remove('hidden');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.classList.add('hidden'),3200)}
@@ -68,6 +143,21 @@ document.getElementById('content').addEventListener('input',e=>{if(e.target.id==
 document.getElementById('content').addEventListener('click',e=>{const toggle=e.target.closest('[data-setting]');if(toggle){const k=toggle.dataset.setting;state.settings[k]=!state.settings[k];toggle.classList.toggle('on',state.settings[k]);toggle.setAttribute('aria-checked',String(state.settings[k]));}});
 document.getElementById('globalSearch').addEventListener('input',e=>{state.query=e.target.value;if(state.page==='overview'){goto('users');state.query=e.target.value;render()}else render()});
 document.getElementById('menuToggle').addEventListener('click',()=>{document.getElementById('sidebar').classList.toggle('open');document.getElementById('overlay').classList.toggle('show')});document.getElementById('overlay').addEventListener('click',()=>{document.getElementById('sidebar').classList.remove('open');document.getElementById('overlay').classList.remove('show')});
+
+function syncLiveUi(){
+ const values=[liveCounts.users,liveCounts.deposits,demo.withdrawals.filter(r=>r.status==='Pending').length,liveCounts.bots];
+ const labels=['Total Users','Deposit Requests','Pending Withdrawals','Bot Purchase Requests'];
+ const cards=document.querySelectorAll('.metric');
+ cards.forEach((card,i)=>{const value=card.querySelector('.metric-value'),label=card.querySelector('.metric-label'),foot=card.querySelector('.metric-foot');if(value)value.textContent=Number(values[i]||0).toLocaleString();if(label)label.textContent=labels[i];if(foot)foot.textContent='Live Firestore count';});
+ document.querySelectorAll('.table-footer span').forEach(el=>{el.textContent=el.textContent.replace(/demo record(s)? · Not live data/,'live records');});
+ document.querySelectorAll('.nav-count').forEach(el=>{const page=el.closest('[data-page]')&&el.closest('[data-page]').dataset.page;el.textContent=page==='deposits'?demo.deposits.filter(r=>r.status==='Pending').length:page==='withdrawals'?demo.withdrawals.filter(r=>r.status==='Pending').length:el.textContent;});
+ document.querySelectorAll('.panel-subtitle').forEach(el=>{if(el.textContent.includes('Sample data'))el.textContent='Live data is shown below from Firestore.';if(el.textContent.includes('sample events'))el.textContent='Current platform data';});
+ const summary=document.querySelectorAll('.summary-card');if(summary.length){const page=state.page,arr=demo[page]||[];const first=summary[0].querySelector('strong'),second=summary[1]&&summary[1].querySelector('strong');if(first&&['users','deposits','withdrawals','tasks','bots'].includes(page))first.textContent=arr.length.toLocaleString();if(second&&['users','deposits','withdrawals','tasks','bots'].includes(page))second.textContent=arr.filter(r=>r.status==='Pending').length.toLocaleString();}
+}
+const renderBeforeLive=render;
+render=function(){renderBeforeLive();if(liveConnected)syncLiveUi();};
+document.getElementById('content').addEventListener('click',function(e){const b=e.target.closest('[data-action="approve"],[data-action="reject"]');if(b){e.preventDefault();e.stopImmediatePropagation();notify('Read-only connection is active. Approve/reject actions will be enabled only after secure transaction workflows are verified.');}},true);
+document.getElementById('content').addEventListener('click',function(e){if(e.target.closest('#refreshBtn')){e.preventDefault();loadLiveData().then(()=>notify('Firebase data refreshed.')).catch(err=>notify('Refresh failed: '+err.message));}},true);
 render();
 </script>
 </body>
