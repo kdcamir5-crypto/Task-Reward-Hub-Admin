@@ -112,9 +112,9 @@ document.getElementById('loginForm').addEventListener('submit',async e=>{
 });
 auth.onAuthStateChanged(async user=>{
  const gate=document.getElementById('authGate'),msg=document.getElementById('authMessage');
- if(!user){currentAdmin=null;liveConnected=false;gate.hidden=false;setConnection('Sign in required');document.getElementById('signOutBtn').style.display='none';return;}
+ if(!user){paymentLoaded=false;paymentConfig={bkashNumber:'',instructions:'',active:false};currentAdmin=null;liveConnected=false;gate.hidden=false;setConnection('Sign in required');document.getElementById('signOutBtn').style.display='none';return;}
  try{const profile=await db.collection('users').doc(user.uid).get();if(!profile.exists||profile.data().role!=='admin'){await auth.signOut();msg.textContent='Access denied. This account does not have the admin role in Firestore.';return;}
- currentAdmin=user;gate.hidden=true;document.getElementById('loginSubmit').disabled=false;document.getElementById('loginSubmit').textContent='Sign in securely';await loadLiveData();}
+ currentAdmin=user;loadPaymentSettings();gate.hidden=true;document.getElementById('loginSubmit').disabled=false;document.getElementById('loginSubmit').textContent='Sign in securely';await loadLiveData();}
  catch(err){gate.hidden=false;msg.textContent='Could not verify admin role or read Firestore. Check Firestore rules. '+(err.message||'');setConnection('Connection error');}
 });
 document.getElementById('signOutBtn').addEventListener('click',()=>auth.signOut());
@@ -163,6 +163,54 @@ const renderBeforeLive=render;
 render=function(){renderBeforeLive();if(liveConnected)syncLiveUi();};
 document.getElementById('content').addEventListener('click',function(e){const b=e.target.closest('[data-action="approve"],[data-action="reject"]');if(b){e.preventDefault();e.stopImmediatePropagation();notify('Read-only connection is active. Approve/reject actions will be enabled only after secure transaction workflows are verified.');}},true);
 document.getElementById('content').addEventListener('click',function(e){if(e.target.closest('#refreshBtn')){e.preventDefault();loadLiveData().then(()=>notify('Firebase data refreshed.')).catch(err=>notify('Refresh failed: '+err.message));}},true);
+let paymentConfig={bkashNumber:'',instructions:'',active:false};
+let paymentLoaded=false,paymentSaving=false,paymentLoadError='';
+async function loadPaymentSettings(){
+ paymentLoaded=false;paymentLoadError='';
+ try{
+  const snapshot=await db.collection('appSettings').doc('paymentSettings').get();
+  const data=snapshot.exists?snapshot.data():{};
+  paymentConfig={bkashNumber:String(data.bkashNumber||''),instructions:String(data.instructions||''),active:data.active===true};
+  paymentLoaded=true;
+ }catch(error){paymentLoadError='Could not load payment settings: '+error.message;}
+ if(state.page==='settings')render();
+}
+function paymentSettingsCard(){
+ return '<section class="panel setting-card" style="grid-column:1/-1"><div class="panel-title">Deposit Payment Settings</div><div class="panel-subtitle">Configure the bKash Personal number shown in the user app Deposit page.</div><form id="paymentSettingsForm"><div class="auth-field"><label for="paymentBkashNumber">bKash Personal number</label><input id="paymentBkashNumber" type="tel" inputmode="numeric" autocomplete="off" maxlength="11" pattern="01[3-9][0-9]{8}" placeholder="01XXXXXXXXX" value="'+escapeHtml(paymentConfig.bkashNumber)+'"></div><div class="auth-field"><label for="paymentInstructions">Payment instructions (maximum 600 characters)</label><textarea id="paymentInstructions" maxlength="600" rows="4" style="width:100%;padding:12px;border:1px solid #dfe6f0;border-radius:11px;font:inherit;resize:vertical">'+escapeHtml(paymentConfig.instructions)+'</textarea></div><label style="display:flex;align-items:center;gap:10px;margin:18px 0"><input id="paymentActive" type="checkbox" '+(paymentConfig.active?'checked':'')+'> Enable deposits</label><p style="font-size:12px;color:#718099">Enter a valid 11-digit number before enabling deposits. Saved details appear in the user app automatically.</p><button class="btn btn-primary" type="submit" '+(!paymentLoaded||paymentSaving?'disabled':'')+'>'+(paymentSaving?'Saving…':'Save deposit settings')+'</button><p id="paymentSettingsMessage" role="status" style="font-size:13px;margin-top:14px">'+escapeHtml(paymentLoadError||(!paymentLoaded?'Loading payment settings…':''))+'</p>'+ (paymentLoadError?'<button class="btn" id="retryPaymentSettings" type="button">Retry loading</button>':'')+'</form></section>';
+}
+const settingsPageBeforePayments=settingsPage;
+settingsPage=function(){return settingsPageBeforePayments()+paymentSettingsCard();};
+document.getElementById('content').addEventListener('input',function(event){
+ if(event.target.id==='paymentBkashNumber')paymentConfig.bkashNumber=event.target.value;
+ if(event.target.id==='paymentInstructions')paymentConfig.instructions=event.target.value;
+});
+document.getElementById('content').addEventListener('change',function(event){
+ if(event.target.id==='paymentActive')paymentConfig.active=event.target.checked;
+});
+document.getElementById('content').addEventListener('click',function(event){
+ if(event.target.closest('#retryPaymentSettings'))loadPaymentSettings();
+});
+document.getElementById('content').addEventListener('submit',async function(event){
+ if(event.target.id!=='paymentSettingsForm')return;
+ event.preventDefault();
+ if(paymentSaving||!paymentLoaded)return;
+ const message=document.getElementById('paymentSettingsMessage');
+ const number=paymentConfig.bkashNumber.trim(),instructions=paymentConfig.instructions.trim();
+ if(!currentAdmin||!auth.currentUser||auth.currentUser.uid!==currentAdmin.uid){message.textContent='Please sign in as an administrator.';return;}
+ if((number&&!/^01[3-9][0-9]{8}$/.test(number))||(paymentConfig.active&&!number)){message.textContent='Enter a valid bKash Personal number, for example 017XXXXXXXX.';return;}
+ if(instructions.length>600){message.textContent='Instructions must be 600 characters or fewer.';return;}
+ const payload={bkashNumber:number,instructions:instructions,active:paymentConfig.active,updatedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedBy:currentAdmin.uid};
+ paymentSaving=true;
+ const button=event.target.querySelector('[type="submit"]');button.disabled=true;button.textContent='Saving…';message.textContent='';
+ try{
+  await db.collection('appSettings').doc('paymentSettings').set(payload);
+  paymentConfig={bkashNumber:number,instructions:instructions,active:payload.active};
+  message.textContent='Saved to Firebase. The user app will show these payment details.';
+  notify('Deposit payment settings saved.');
+ }catch(error){message.textContent=error.code==='permission-denied'?'Save denied. Publish the appSettings/paymentSettings admin rules in Firebase, then try again.':'Could not save: '+error.message;}
+ finally{paymentSaving=false;button.disabled=false;button.textContent='Save deposit settings';}
+});
+
 render();
 </script>
 </body>
