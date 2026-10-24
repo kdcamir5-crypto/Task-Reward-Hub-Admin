@@ -62,6 +62,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="bot-purchase-core.js?v=20261024"></script>
 <script>
 const firebaseConfig = {
  apiKey:"AIzaSyB7aAoaiSvYjfj9HWdY-TmJmfeDBF8stiY",
@@ -161,7 +162,7 @@ function syncLiveUi(){
 }
 const renderBeforeLive=render;
 render=function(){renderBeforeLive();if(liveConnected)syncLiveUi();};
-document.getElementById('content').addEventListener('click',function(e){const b=e.target.closest('[data-action="approve"],[data-action="reject"]');if(b){e.preventDefault();e.stopImmediatePropagation();notify('Read-only connection is active. Approve/reject actions will be enabled only after secure transaction workflows are verified.');}},true);
+document.getElementById('content').addEventListener('click',function(e){const b=e.target.closest('[data-action="approve"],[data-action="reject"]');if(b){e.preventDefault();e.stopImmediatePropagation();if(state.page==='overview'){openPaymentReview('deposits',b.dataset.id,b.dataset.action);return;}notify('এই বিভাগের approval workflow এখনো সংযুক্ত করা হয়নি।');}},true);
 document.getElementById('content').addEventListener('click',function(e){if(e.target.closest('#refreshBtn')){e.preventDefault();loadLiveData().then(()=>notify('Firebase data refreshed.')).catch(err=>notify('Refresh failed: '+err.message));}},true);
 let paymentConfig={bkashNumber:'',instructions:'',active:false};
 let paymentLoaded=false,paymentSaving=false,paymentLoadError='';
@@ -209,6 +210,39 @@ document.getElementById('content').addEventListener('submit',async function(even
   notify('Deposit payment settings saved.');
  }catch(error){message.textContent=error.code==='permission-denied'?'Save denied. Publish the appSettings/paymentSettings admin rules in Firebase, then try again.':'Could not save: '+error.message;}
  finally{paymentSaving=false;button.disabled=false;button.textContent='Save deposit settings';}
+});
+
+// Live payment review for bot purchases and wallet deposits.
+const dataPageBeforePurchaseReview=dataPage;
+dataPage=function(page){
+ if(!['bots','deposits'].includes(page))return dataPageBeforePurchaseReview(page);
+ const title=page==='bots'?'Bot Purchases':'Deposits';
+ const rows=(demo[page]||[]).filter(r=>(r.name+' '+r.email+' '+r.id+' '+(r.raw.trxId||'')).toLowerCase().includes(state.query.toLowerCase())&&(state.filter==='All'||r.status===state.filter));
+ return heading(title,'Verify the actual bKash payment before approving. Each approval is processed once in a Firestore transaction.','<button class="btn" id="paymentRefreshBtn">'+icon('refresh')+' Refresh</button>')+'<section class="panel table-panel"><div class="panel-head"><div class="panel-title">Payment requests</div><div class="section-tools"><input id="tableSearch" placeholder="Search name, ID or TRX..." value="'+escapeHtml(state.query)+'"><select id="statusFilter" class="select"><option>All</option><option>Pending</option><option>Approved</option><option>Rejected</option></select></div></div><div class="table-wrap"><table><thead><tr><th>User / Package</th><th>Payment details</th><th>Amount</th><th>Status</th><th>Review</th></tr></thead><tbody>'+rows.map(r=>{const d=r.raw;return '<tr><td><strong>'+escapeHtml(r.name)+'</strong><br><small>'+escapeHtml(page==='bots'?(d.botName||d.botId):d.email)+'</small><br><small>'+escapeHtml(r.id)+'</small></td><td>'+escapeHtml(d.paymentMethod||d.type)+'<br>Sender: '+escapeHtml(d.senderNumber||'—')+'<br>TRX: <b>'+escapeHtml(d.trxId||'—')+'</b>'+(d.receivingNumber?'<br>Paid to: '+escapeHtml(d.receivingNumber):'')+'</td><td>'+escapeHtml(r.amount)+'</td><td>'+statusBadge(r.status)+(d.rejectionReason?'<br><small>'+escapeHtml(d.rejectionReason)+'</small>':'')+'</td><td><div class="table-actions"><button class="btn" data-payment-review="view" data-id="'+escapeHtml(r.id)+'">Details</button>'+(d.status==='pending'?'<button class="btn btn-primary" data-payment-review="approve" data-id="'+escapeHtml(r.id)+'">Approve</button><button class="btn" data-payment-review="reject" data-id="'+escapeHtml(r.id)+'">Reject</button>':'')+'</div></td></tr>';}).join('')+'</tbody></table></div>'+(rows.length?'':'<div class="empty-state">No matching payment requests.</div>')+'</section>';
+};
+let reviewBusy=false;
+const reviewDialog=document.createElement('dialog');reviewDialog.id='paymentReviewDialog';reviewDialog.style.cssText='width:min(94vw,520px);max-height:90vh;border:1px solid #dfe6f0;border-radius:18px;padding:24px;color:#18243a;overflow:auto';document.body.appendChild(reviewDialog);
+reviewDialog.addEventListener('cancel',event=>{if(reviewBusy)event.preventDefault();});
+function openPaymentReview(kind,id,action){
+ const row=(demo[kind]||[]).find(r=>r.id===id);if(!row)return;const d=row.raw;
+ reviewDialog.innerHTML='<form id="paymentReviewForm"><h2 style="margin-top:0">'+(action==='view'?'Payment details':action==='approve'?'Verify and approve':'Reject payment')+'</h2><p><b>'+escapeHtml(row.name)+'</b><br>'+escapeHtml(kind==='bots'?(d.botName||d.botId):'Wallet deposit')+'</p><p>Amount: <b>'+escapeHtml(row.amount)+'</b><br>Method: '+escapeHtml(d.paymentMethod||d.type)+'<br>Sender: '+escapeHtml(d.senderNumber||'—')+'<br>Transaction ID: <b>'+escapeHtml(d.trxId||'—')+'</b><br>Receiving number: '+escapeHtml(d.receivingNumber||'Check your configured bKash account')+'</p>'+(d.referrerUid?'<p>Referrer: '+escapeHtml(d.referrerName||d.referrerUid)+' (#'+escapeHtml(d.referrerCode)+')<br>Commission on approval: '+formatMoney(d.amount/20)+'</p>':'')+'<p>Status: '+escapeHtml(d.status)+'</p>'+(action==='approve'?'<label style="display:flex;gap:10px;line-height:1.7;margin:18px 0"><input type="checkbox" id="paymentVerified" required> I checked my bKash account and verified this exact payment, amount and Transaction ID.</label><p style="font-size:12px;color:#718099">'+(kind==='bots'?'Approval unlocks this bot and credits its referrer once. The buyer wallet is not credited.':'Approval credits the user wallet once.')+'</p>':action==='reject'?'<label for="paymentRejectReason">Rejection reason</label><textarea id="paymentRejectReason" required minlength="3" maxlength="300" rows="3" style="width:100%;padding:12px;box-sizing:border-box;margin:10px 0"></textarea>':'')+'<p id="paymentReviewMessage" role="status" style="color:#c34d56"></p><div style="display:flex;gap:10px"><button class="btn" type="button" id="closePaymentReview">Close</button>'+(action==='view'?'':'<button class="btn btn-primary" type="submit" id="confirmPaymentReview">'+(action==='approve'?'Approve payment':'Reject payment')+'</button>')+'</div></form>';
+ document.getElementById('closePaymentReview').onclick=()=>{if(!reviewBusy)reviewDialog.close();};
+ document.getElementById('paymentReviewForm').onsubmit=async event=>{
+  event.preventDefault();if(reviewBusy||action==='view')return;
+  if(!currentAdmin)return;
+  reviewBusy=true;const button=document.getElementById('confirmPaymentReview');button.disabled=true;button.textContent='Processing…';
+  try{
+   await window.HubBotPurchase.review(db,firebase.firestore.FieldValue,currentAdmin,kind,id,action==='approve',document.getElementById('paymentRejectReason')?.value||'');
+   reviewDialog.close();notify('Payment '+(action==='approve'?'approved.':'rejected.'));
+   await loadLiveData();
+  }catch(error){document.getElementById('paymentReviewMessage').textContent=error.code==='permission-denied'?'Permission denied. Publish the updated Firebase rules and check the admin role.':error.message;}
+  finally{reviewBusy=false;button.disabled=false;button.textContent=action==='approve'?'Approve payment':'Reject payment';}
+ };
+ reviewDialog.showModal();
+}
+document.getElementById('content').addEventListener('click',event=>{
+ const button=event.target.closest('[data-payment-review]');if(button){event.preventDefault();openPaymentReview(state.page,button.dataset.id,button.dataset.paymentReview);}
+ if(event.target.closest('#paymentRefreshBtn')){loadLiveData().then(()=>notify('Payments refreshed.')).catch(error=>notify(error.message));}
 });
 
 render();
