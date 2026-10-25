@@ -73,8 +73,9 @@ const firebaseConfig = {
  messagingSenderId:"673282864149",
  appId:"1:673282864149:web:83e6ddcd0f7a99f8e18a1c"
 };
-firebase.initializeApp(firebaseConfig);
-const auth=firebase.auth(), db=firebase.firestore();
+// Keep admin sign-in separate from the user app on the shared GitHub Pages origin.
+const adminApp=firebase.apps.find(app=>app.name==='TaskRewardHubAdmin') || firebase.initializeApp(firebaseConfig,'TaskRewardHubAdmin');
+const auth=adminApp.auth(), db=adminApp.firestore();
 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});
 let liveConnected=false, currentAdmin=null;
 let liveCounts={users:0,deposits:0,withdrawals:0,tasks:0,bots:0,codes:0};
