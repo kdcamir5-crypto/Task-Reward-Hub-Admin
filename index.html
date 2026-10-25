@@ -63,6 +63,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="bot-purchase-core.js?v=20261025-ref1"></script>
+<script src="withdrawal-core.js?v=20261025-withdraw1"></script>
 <script>
 const firebaseConfig = {
  apiKey:"AIzaSyB7aAoaiSvYjfj9HWdY-TmJmfeDBF8stiY",
@@ -246,6 +247,36 @@ document.getElementById('content').addEventListener('click',event=>{
  if(event.target.closest('#paymentRefreshBtn')){loadLiveData().then(()=>notify('Payments refreshed.')).catch(error=>notify(error.message));}
 });
 
+// Withdrawals use real reservation and settlement transactions, independent of deposits.
+const dataPageBeforeWithdrawals=dataPage;
+dataPage=function(page){
+ if(page!=='withdrawals')return dataPageBeforeWithdrawals(page);
+ const rows=demo.withdrawals.filter(r=>(r.name+' '+r.id+' '+r.raw.number+' '+r.raw.status).toLowerCase().includes(state.query.toLowerCase())&&(state.filter==='All'||r.raw.status===state.filter.toLowerCase()));
+ return heading('Withdrawals','Funds are reserved on new requests. Send the payout yourself, then record its transaction reference.','<button class="btn" id="withdrawRefreshBtn">Refresh</button>')+'<section class="panel table-panel"><div class="panel-head"><div class="panel-title">Payout settlement</div><div class="section-tools"><input id="tableSearch" placeholder="Search user, ID or number..." value="'+escapeHtml(state.query)+'"><select class="select" id="statusFilter"><option>All</option><option>Pending</option><option>Paid</option><option>Rejected</option></select></div></div><div class="table-wrap"><table><thead><tr><th>User / ID</th><th>Destination</th><th>Amount / Reserve</th><th>Status</th><th>Review</th></tr></thead><tbody>'+rows.map(r=>{const d=r.raw;return '<tr><td>'+escapeHtml(r.name)+'<br><small>'+escapeHtml(r.id)+'</small></td><td>'+escapeHtml(d.type)+'<br>'+escapeHtml(d.number)+'</td><td>'+escapeHtml(r.amount)+'<br><small>'+(d.reservationVersion===2?'Reserved':'Legacy: not reserved')+'</small></td><td>'+escapeHtml(d.status)+(d.payoutReference?'<br>TRX: '+escapeHtml(d.payoutReference):'')+(d.rejectionReason?'<br>'+escapeHtml(d.rejectionReason):'')+'</td><td><button class="btn" data-withdraw-review="view" data-id="'+escapeHtml(r.id)+'">Details</button>'+(d.status==='pending'?'<button class="btn btn-primary" data-withdraw-review="paid" data-id="'+escapeHtml(r.id)+'">Mark Paid</button><button class="btn" data-withdraw-review="reject" data-id="'+escapeHtml(r.id)+'">Reject</button>':'')+'</td></tr>';}).join('')+'</tbody></table></div>'+(rows.length?'':'<div class="empty-state">No matching withdrawal requests.</div>')+'</section>';
+};
+const withdrawalDialog=document.createElement('dialog');withdrawalDialog.style.cssText=reviewDialog.style.cssText;document.body.appendChild(withdrawalDialog);
+let settlingWithdrawal=false;
+withdrawalDialog.addEventListener('cancel',e=>{if(settlingWithdrawal)e.preventDefault();});
+function openWithdrawalReview(id,action){
+ if(!currentAdmin||settlingWithdrawal)return;
+ const row=demo.withdrawals.find(r=>r.id===id);if(!row)return;const d=row.raw;
+ withdrawalDialog.innerHTML='<form id="withdrawReviewForm"><h2>'+ (action==='paid'?'Confirm paid payout':action==='reject'?'Reject withdrawal':'Withdrawal details')+'</h2><p>'+escapeHtml(row.name)+'<br>'+escapeHtml(d.type)+' · <b>'+escapeHtml(d.number)+'</b><br>Amount: <b>'+escapeHtml(row.amount)+'</b><br>Status: '+escapeHtml(d.status)+'</p><p>'+(d.reservationVersion===2?'এই টাকা available balance থেকে আগেই reserve হয়েছে। Paid করলে আবার কাটবে না; Reject করলে reserve ফেরত যাবে।':'পুরোনো request: টাকা reserve হয়নি। Reject করলে টাকা যোগ হবে না। Paid করলে বর্তমান available balance থেকে কাটবে; পর্যাপ্ত টাকা না থাকলে settlement বন্ধ থাকবে। নতুন reserved request নিতে চাইলে এটি Reject করুন।')+'</p>'+(d.payoutReference?'<p>Payment reference: '+escapeHtml(d.payoutReference)+'</p>':'')+(d.rejectionReason?'<p>Reason: '+escapeHtml(d.rejectionReason)+'</p>':'')+(action==='view'?'':'<label for="withdrawReviewReference">'+(action==='paid'?'Actual payout transaction/reference':'Rejection reason')+'</label><input id="withdrawReviewReference" required minlength="3" maxlength="100" style="width:100%;padding:12px;margin:12px 0;box-sizing:border-box">')+(action==='paid'?'<label style="display:flex;gap:8px"><input id="withdrawPaymentConfirmed" type="checkbox" required>আমি সঠিক number-এ সম্পূর্ণ টাকা পাঠিয়েছি এবং transaction যাচাই করেছি।</label><p>এই button নিজে bKash/Nagad/Rocket payment পাঠায় না।</p>':'')+'<p id="withdrawReviewMessage" role="status"></p><div style="display:flex;gap:10px"><button class="btn" type="button" id="withdrawReviewClose">Close</button>'+(action==='view'?'':'<button class="btn btn-primary" id="withdrawReviewConfirm" type="submit">'+(action==='paid'?'Confirm Paid':'Reject & release reserve')+'</button>')+'</div></form>';
+ document.getElementById('withdrawReviewClose').onclick=()=>{if(!settlingWithdrawal)withdrawalDialog.close();};
+ document.getElementById('withdrawReviewForm').onsubmit=async e=>{
+  e.preventDefault();if(settlingWithdrawal||action==='view')return;
+  if(!currentAdmin||auth.currentUser?.uid!==currentAdmin.uid)return;
+  if(action==='paid'&&!document.getElementById('withdrawPaymentConfirmed').checked)return;
+  const button=document.getElementById('withdrawReviewConfirm');settlingWithdrawal=true;button.disabled=true;
+  try{await window.HubWithdrawals.settle(db,firebase.firestore.FieldValue,currentAdmin,id,action==='paid',document.getElementById('withdrawReviewReference').value);withdrawalDialog.close();notify(action==='paid'?'Payout recorded as paid.':'Withdrawal rejected; reserved funds released.');await loadLiveData();}
+  catch(error){document.getElementById('withdrawReviewMessage').textContent=error.code==='permission-denied'?'Permission denied. Publish updated Firestore rules and check admin role.':error.message;}
+  finally{settlingWithdrawal=false;button.disabled=false;}
+ };
+ withdrawalDialog.showModal();
+}
+document.getElementById('content').addEventListener('click',e=>{
+ const b=e.target.closest('[data-withdraw-review]');if(b){e.preventDefault();openWithdrawalReview(b.dataset.id,b.dataset.withdrawReview);}
+ if(e.target.closest('#withdrawRefreshBtn'))loadLiveData().then(()=>notify('Withdrawals refreshed.')).catch(error=>notify(error.message));
+});
 render();
 </script>
 </body>
