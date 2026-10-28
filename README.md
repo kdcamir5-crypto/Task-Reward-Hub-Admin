@@ -19,3 +19,5 @@ Before testing, publish the full current `firebase.rules` from the Task-Reward-H
 - Delete removes a task for all users while retaining submitted proof and financial history. Expired definitions are removed by the user repository's scheduled cleanup worker.
 - Review shows written proof. Approve atomically credits the main balance once; Reject requires a reason and pays nothing. Proof can be reviewed after deletion or expiry.
 - Publish the latest user-repository `firebase.rules` before using this flow. The Node checks in `.github/workflows/verify-daily-tasks.yml` test the admin interface; Firestore transaction tests live in Task-Reward-Hub.
+
+Deployment note (2026-10-28): Cloudflare Pages should deploy the `main` branch of this repository. After restoring GitHub repository access, trigger a fresh deployment to publish the latest Daily Tasks files.
