@@ -1,0 +1,22 @@
+name: Verify daily task admin UI
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - daily-tasks-core.js
+      - daily-tasks-admin.js
+      - tests/daily-tasks-admin.test.cjs
+      - .github/workflows/verify-daily-tasks.yml
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - run: node --check daily-tasks-admin.js
+      - run: node --test tests/daily-tasks-admin.test.cjs
