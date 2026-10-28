@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - index.html
+      - tests/settings-status.test.cjs
       - overview-core.js
       - overview-admin.js
       - tests/overview.test.cjs
@@ -30,4 +31,4 @@ jobs:
       - run: node --check users-admin.js
       - run: node --check overview-core.js
       - run: node --check overview-admin.js
-      - run: node --test tests/admin-login.test.cjs tests/users-filter.test.cjs tests/users-admin.test.cjs tests/overview.test.cjs tests/daily-tasks-admin.test.cjs
+      - run: node --test tests/admin-login.test.cjs tests/users-filter.test.cjs tests/users-admin.test.cjs tests/overview.test.cjs tests/settings-status.test.cjs tests/daily-tasks-admin.test.cjs
