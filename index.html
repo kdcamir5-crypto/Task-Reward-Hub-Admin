@@ -89,6 +89,7 @@ function setConnection(v){const e=document.getElementById('connectionLabel');if(
 function getField(d,keys,fallback){for(const k of keys)if(d[k]!==undefined&&d[k]!==null&&d[k]!=='')return d[k];return fallback||'';}
 function formatMoney(v){return '৳'+Number(v||0).toLocaleString('en-BD',{maximumFractionDigits:2});}
 function liveStatus(v){const s=String(v||'pending').toLowerCase();if(['paid','approved','completed','active','verified'].includes(s))return 'Approved';if(['rejected','declined','failed','blocked','disabled','suspended'].includes(s))return 'Rejected';return s==='pending'?'Pending':s.charAt(0).toUpperCase()+s.slice(1);}
+function userStatus(v){const s=String(v||'active').trim().toLowerCase();return s==='active'?'Active':liveStatus(s);}
 async function fetchDocs(name){const snap=await db.collection(name).get();return snap.docs.map(doc=>Object.assign({id:doc.id},doc.data()));}
 async function loadLiveData(){
  if(!currentAdmin)return;
@@ -96,7 +97,7 @@ async function loadLiveData(){
  const results=await Promise.all([fetchDocs('users'),fetchDocs('walletDeposits'),fetchDocs('withdrawals'),fetchDocs('submissions'),fetchDocs('botPurchaseRequests'),fetchDocs('botRedeemCodes'),fetchDocs('rewardCodes')]);
  const names=['users','deposits','withdrawals','tasks','bots'];
  const mapped=[
-  results[0].map(d=>({name:getField(d,['name','full_name','displayName','userName'],'Unnamed user'),email:getField(d,['email','phone','telegram'],d.uid||d.id),id:d.id,amount:formatMoney(d.balance),status:liveStatus(d.status||'active'),tone:'#e8f1ff',color:'#3974d9',raw:d})),
+  results[0].map(d=>({name:getField(d,['name','full_name','displayName','userName'],'Unnamed user'),email:getField(d,['email','phone','telegram'],d.uid||d.id),id:d.id,amount:formatMoney(d.balance),status:userStatus(d.status),tone:'#e8f1ff',color:'#3974d9',raw:d})),
   results[1].map(d=>({name:getField(d,['userName','name','email'],'User '+String(d.uid||'').slice(0,8)),email:getField(d,['type','method'],'Payment')+' · '+getField(d,['senderNumber','number','trxId'],'Details unavailable'),id:d.id,amount:formatMoney(d.amount),status:liveStatus(d.status),tone:'#e8f1ff',color:'#3974d9',raw:d})),
   results[2].map(d=>({name:getField(d,['userName','name','email'],'User '+String(d.uid||'').slice(0,8)),email:getField(d,['type'],'Payout')+' · '+getField(d,['number'],'Number unavailable'),id:d.id,amount:formatMoney(d.amount),status:liveStatus(d.status),tone:'#e7f8ef',color:'#18865b',raw:d})),
   results[3].map(d=>({name:getField(d,['email','userName'],'User '+String(d.uid||'').slice(0,8)),email:getField(d,['taskTitle','taskId'],'Task submission'),id:d.id,amount:formatMoney(d.reward),status:liveStatus(d.status),tone:'#fff1e1',color:'#c27a17',raw:d})),

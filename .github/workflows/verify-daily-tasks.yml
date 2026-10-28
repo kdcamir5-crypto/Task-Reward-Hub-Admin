@@ -6,6 +6,7 @@ on:
     paths:
       - index.html
       - tests/admin-login.test.cjs
+      - tests/users-filter.test.cjs
       - daily-tasks-core.js
       - daily-tasks-admin.js
       - tests/daily-tasks-admin.test.cjs
@@ -21,4 +22,4 @@ jobs:
         with:
           node-version: '24'
       - run: node --check daily-tasks-admin.js
-      - run: node --test tests/admin-login.test.cjs tests/daily-tasks-admin.test.cjs
+      - run: node --test tests/admin-login.test.cjs tests/users-filter.test.cjs tests/daily-tasks-admin.test.cjs
