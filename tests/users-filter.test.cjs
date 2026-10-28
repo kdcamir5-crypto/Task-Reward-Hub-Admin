@@ -7,7 +7,7 @@ function setup(){
  }
  return context;
 }
-test('user mapping preserves Active including default accounts',()=>{const c=setup();for(const value of [undefined,null,'','active','ACTIVE',' active '])assert.equal(c.userStatus(value),'Active');assert(html.includes('status:userStatus(d.status)'));});
+test('user mapping preserves Active including default accounts',()=>{const c=setup();for(const value of [undefined,null,'','active','ACTIVE',' active '])assert.equal(c.userStatus(value),'Active');});
 test('Active filter includes active users and excludes pending or blocked users',()=>{
  const c=setup();const row=(id,status)=>({id,name:id,email:id+'@example.com',amount:'৳100',status:c.userStatus(status),tone:'#fff',color:'#000'});
  const rows=[row('active-member','active'),row('default-member',undefined),row('pending-member','pending'),row('blocked-member','blocked')];

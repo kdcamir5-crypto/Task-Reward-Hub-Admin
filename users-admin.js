@@ -1,8 +1,14 @@
-/* Read-only member details and pagination over the loaded admin snapshot. */
+/* Bounded server pages, progressive global search and read-only member details. */
 (function(){
 'use strict';
 const pageSize=25,escape=escapeHtml;
-let page=1,signature='',requestVersion=0;
+let page=1,signature='',requestVersion=0,pager=null,owner=null,started=false,listVersion=0;
+const Core=window.HubUsersData;
+function valid(){return !!(currentAdmin&&auth.currentUser?.uid===currentAdmin.uid);}
+function reset(){listVersion++;pager?.reset();page=1;signature='';started=false;}
+function ensure(){if(!valid())return false;if(owner!==currentAdmin.uid){pager?.reset();pager=Core.createPager(db,firebase.firestore.FieldPath.documentId());owner=currentAdmin.uid;reset();}return true;}
+function matching(){return pager.state().rows.filter(d=>Core.matches(d,d.id,state.query,state.filter,userStatus(d.status)));}
+async function loadNext(advance=false){if(!ensure())return;const actor=owner,active=pager,version=listVersion;if(active.state().busy)return;started=true;await active.next();if(!valid()||owner!==actor||pager!==active||version!==listVersion)return;if(advance&&!active.state().failed)page++;if(state.page==='users')render();}
 const details=document.createElement('dialog');
 details.setAttribute('aria-label','Member details');
 details.style.cssText='border:1px solid #dce5f2;border-radius:18px;padding:22px;width:min(560px,94vw);max-height:85vh;overflow:auto;box-sizing:border-box;color:#17243c';
@@ -10,16 +16,21 @@ document.body.appendChild(details);
 const previousDataPage=dataPage;
 dataPage=function(kind){
  if(kind!=='users')return previousDataPage(kind);
+ if(!ensure())return heading('Users','Sign in with an authorized administrator account.');
  const nextSignature=state.query+'\n'+state.filter;
  if(signature!==nextSignature){page=1;signature=nextSignature;}
- const query=state.query.trim().toLowerCase();
- const rows=demo.users.filter(r=>[r.name,r.email,r.id,r.status,r.raw?.collectorId,r.raw?.collector_id].join(' ').toLowerCase().includes(query)&&(state.filter==='All'||r.status===state.filter)).sort((a,b)=>a.id.localeCompare(b.id));
- const pages=Math.max(1,Math.ceil(rows.length/pageSize));page=Math.max(1,Math.min(page,pages));
- const shown=rows.slice((page-1)*pageSize,page*pageSize);
- return heading('Users','View member profiles, account status and wallet overview.','<button class="btn" data-users-refresh>Refresh users</button>')+
- '<div class="section-summary"><div class="summary-card" data-users-summary><div class="small-label">Registered Members</div><strong>'+demo.users.length+'</strong></div><div class="summary-card" data-users-summary><div class="small-label">Matching Members</div><strong>'+rows.length+'</strong></div><div class="summary-card" data-users-summary><div class="small-label">Data source</div><strong style="font-size:18px">'+(liveConnected?'Firestore snapshot':'Data unavailable')+'</strong></div></div>'+
- '<section class="panel table-panel"><div class="panel-head"><div><div class="panel-title">Members</div><div class="panel-subtitle">25 members per page · Refresh to load changes</div></div><div class="section-tools"><input id="tableSearch" aria-label="Search members" placeholder="Search name, email, UID or Collector ID..." value="'+escape(state.query)+'"><select class="select" id="statusFilter" aria-label="Member status">'+['All','Active','Pending','Approved','Rejected'].map(s=>'<option>'+s+'</option>').join('')+'</select></div></div><div class="table-wrap"><table><thead><tr><th>Member</th><th>User ID</th><th>Main balance</th><th>Status</th><th>Details</th></tr></thead><tbody>'+shown.map(r=>'<tr><td><strong>'+escape(r.name)+'</strong><br><small>'+escape(r.email)+'</small></td><td>'+escape(r.id)+'</td><td>'+escape(r.amount)+'</td><td>'+statusBadge(r.status)+'</td><td><button class="btn" data-user-details="'+escape(r.id)+'">Details</button></td></tr>').join('')+'</tbody></table></div>'+(rows.length?'':'<div class="empty-state">No matching members.</div>')+
- '<div class="table-footer"><span>Showing '+(rows.length?(page-1)*pageSize+1:0)+'–'+Math.min(page*pageSize,rows.length)+' of '+rows.length+' members</span><div class="footer-buttons"><button class="page-btn" data-user-page="'+(page-1)+'" '+(page===1?'disabled':'')+'>Previous</button><span>Page '+page+' of '+pages+'</span><button class="page-btn" data-user-page="'+(page+1)+'" '+(page===pages?'disabled':'')+'>Next</button></div></div></section>';
+ if(!started)void loadNext();
+ const result=pager.state(),rows=matching(),pages=Math.max(1,Math.ceil(rows.length/pageSize));
+ page=Math.max(1,Math.min(page,pages));
+ const shown=rows.slice((page-1)*pageSize,page*pageSize),filtered=!!state.query.trim()||state.filter!=='All';
+ const next=page<pages||result.more;
+ return heading('Users','Profiles are fetched from Firebase in batches of 25.','<button class="btn" data-users-refresh '+(result.busy?'disabled':'')+'>Refresh users</button>')+
+ '<div class="section-summary"><div class="summary-card" data-users-summary><div class="small-label">Registered Members</div><strong>'+(userSummary?.total??'—')+'</strong></div><div class="summary-card" data-users-summary><div class="small-label">Matches found so far</div><strong>'+rows.length+'</strong></div><div class="summary-card" data-users-summary><div class="small-label">Profiles checked</div><strong>'+result.rows.length+'</strong></div></div>'+
+ '<section class="panel table-panel"><div class="panel-head"><div><div class="panel-title">Members</div><div class="panel-subtitle">'+(filtered?'Search covers profiles checked so far. Continue search checks the next 25; repeat until all profiles are checked.':'25 profiles per server request. Previous pages reuse loaded records.')+'</div></div><div class="section-tools"><input id="tableSearch" aria-label="Search members" placeholder="Search name, email, UID or Collector ID..." value="'+escape(state.query)+'"><select class="select" id="statusFilter" aria-label="Member status">'+['All','Active','Pending','Approved','Rejected'].map(s=>'<option>'+s+'</option>').join('')+'</select></div></div>'+
+ (result.failed?'<p role="status" style="padding:12px;color:#b43245">Could not load the next batch. Retry to continue from the same place.</p>':'')+
+ '<div class="table-wrap"><table><thead><tr><th>Member</th><th>User ID</th><th>Main balance</th><th>Status</th><th>Details</th></tr></thead><tbody>'+shown.map(d=>'<tr><td><strong>'+escape(getField(d,['name','full_name','fullName','displayName','userName'],'Unnamed user'))+'</strong><br><small>'+escape(d.email||d.phone||d.telegram||'—')+'</small></td><td>'+escape(d.id)+'</td><td>'+escape(formatMoney(d.balance))+'</td><td>'+statusBadge(userStatus(d.status))+'</td><td><button class="btn" data-user-details="'+escape(d.id)+'">Details</button></td></tr>').join('')+'</tbody></table></div>'+
+ (!rows.length?'<div class="empty-state">'+(result.busy?'Loading profiles…':result.failed?'Profile data unavailable. Retry below.':result.more?'No matches in checked profiles yet. Continue search to check more members.':'No matching members. All profiles have been checked.')+'</div>':'')+
+ '<div class="table-footer"><span>'+rows.length+' matches in '+result.rows.length+' checked profiles'+(result.more?' · More profiles available':' · All profiles checked')+'</span><div class="footer-buttons"><button class="page-btn" data-user-page="previous" '+(page===1||result.busy?'disabled':'')+'>Previous</button><span>Page '+page+'</span><button class="page-btn" data-user-page="next" '+(!next||result.busy?'disabled':'')+'>'+(result.busy?'Loading…':result.failed?'Retry':page<pages?'Next':filtered?'Continue search (25)':'Next (25)')+'</button></div></div></section>';
 };
 function date(value){
  const ms=value?.toMillis?value.toMillis():value?.seconds?value.seconds*1000:typeof value==='number'?value:typeof value==='string'?Date.parse(value):NaN;
@@ -46,9 +57,17 @@ document.getElementById('content').addEventListener('click',event=>{
  if(state.page!=='users')return;
  const detail=event.target.closest('[data-user-details]'),nav=event.target.closest('[data-user-page]'),refresh=event.target.closest('[data-users-refresh]');
  if(detail){event.preventDefault();void openDetails(detail.dataset.userDetails);}
- if(nav&&!nav.disabled){const next=Number(nav.dataset.userPage);if(Number.isInteger(next)&&next>0){page=next;render();}}
- if(refresh&&!refresh.disabled){refresh.disabled=true;loadLiveData().catch(()=>{notify('Users could not be refreshed. Try again.');}).finally(()=>{refresh.disabled=false;});}
+ if(nav&&!nav.disabled&&ensure()){
+  if(nav.dataset.userPage==='previous'){page=Math.max(1,page-1);render();}
+  else if(page<Math.ceil(matching().length/pageSize)){page++;render();}
+  else{void loadNext(true);render();}
+ }
+ if(refresh&&!refresh.disabled&&ensure()){
+  reset();render();const actor=owner;
+  Core.summary(auth.currentUser,firebaseConfig.projectId,state.period).then(value=>{if(valid()&&owner===actor){userSummary=value;liveCounts.users=value.total;}}).catch(()=>{if(owner===actor)userSummary=null;}).finally(()=>{if(valid()&&owner===actor&&state.page==='users')render();});
+ }
 });
-auth.onAuthStateChanged(user=>{if(!user){requestVersion++;details.close();details.innerHTML='';page=1;signature='';}});
+auth.onAuthStateChanged(user=>{if(!user){requestVersion++;details.close();details.innerHTML='';pager?.reset();pager=null;owner=null;page=1;signature='';started=false;}});
+window.HubAdminUsers={reset};
 if(state.page==='users')render();
 })();

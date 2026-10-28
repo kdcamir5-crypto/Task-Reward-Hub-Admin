@@ -10,6 +10,8 @@ on:
       - overview-admin.js
       - tests/overview.test.cjs
       - users-admin.js
+      - users-data.js
+      - tests/users-data.test.cjs
       - tests/users-admin.test.cjs
       - tests/admin-login.test.cjs
       - tests/users-filter.test.cjs
@@ -29,6 +31,7 @@ jobs:
           node-version: '24'
       - run: node --check daily-tasks-admin.js
       - run: node --check users-admin.js
+      - run: node --check users-data.js
       - run: node --check overview-core.js
       - run: node --check overview-admin.js
-      - run: node --test tests/admin-login.test.cjs tests/users-filter.test.cjs tests/users-admin.test.cjs tests/overview.test.cjs tests/settings-status.test.cjs tests/daily-tasks-admin.test.cjs
+      - run: node --test tests/admin-login.test.cjs tests/users-filter.test.cjs tests/users-admin.test.cjs tests/users-data.test.cjs tests/overview.test.cjs tests/settings-status.test.cjs tests/daily-tasks-admin.test.cjs

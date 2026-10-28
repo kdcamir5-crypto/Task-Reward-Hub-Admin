@@ -69,6 +69,7 @@
 <script src="reward-code-core.js?v=20261025-codes1"></script>
 <script src="community-core.js?v=20261025-feed1"></script>
 <script src="daily-tasks-core.js?v=20261028-tasks1"></script>
+<script src="users-data.js?v=20261028-user-pages2"></script>
 <script>
 const firebaseConfig = {
  apiKey:"AIzaSyB7aAoaiSvYjfj9HWdY-TmJmfeDBF8stiY",
@@ -84,6 +85,7 @@ const adminApp=firebase.apps.find(app=>app.name==='TaskRewardHubAdmin') || fireb
 const auth=adminApp.auth(), db=adminApp.firestore();
 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});
 let liveConnected=false, currentAdmin=null;
+let userSummary=null;
 let liveCounts={users:0,deposits:0,withdrawals:0,tasks:0,bots:0,codes:0};
 function setConnection(v){const e=document.getElementById('connectionLabel');if(e)e.textContent=v;}
 function getField(d,keys,fallback){for(const k of keys)if(d[k]!==undefined&&d[k]!==null&&d[k]!=='')return d[k];return fallback||'';}
@@ -93,11 +95,15 @@ function userStatus(v){const s=String(v||'active').trim().toLowerCase();return s
 async function fetchDocs(name){const snap=await db.collection(name).get();return snap.docs.map(doc=>Object.assign({id:doc.id},doc.data()));}
 async function loadLiveData(){
  if(!currentAdmin)return;
+ const actor=currentAdmin.uid;
  setConnection('Loading data…');
- const results=await Promise.all([fetchDocs('users'),fetchDocs('walletDeposits'),fetchDocs('withdrawals'),fetchDocs('submissions'),fetchDocs('botPurchaseRequests'),fetchDocs('botRedeemCodes'),fetchDocs('rewardCodes')]).catch(error=>{liveConnected=false;setConnection('Refresh failed');if(state.page==='settings')render();throw error;});
+ const results=await Promise.all([window.HubUsersData.summary(auth.currentUser,firebaseConfig.projectId,state.period).catch(()=>null),fetchDocs('walletDeposits'),fetchDocs('withdrawals'),fetchDocs('submissions'),fetchDocs('botPurchaseRequests'),fetchDocs('botRedeemCodes'),fetchDocs('rewardCodes')]).catch(error=>{liveConnected=false;setConnection('Refresh failed');if(state.page==='settings')render();throw error;});
+ if(currentAdmin?.uid!==actor||auth.currentUser?.uid!==actor)return;
+ userSummary=results[0];
+ window.HubAdminUsers?.reset();
  const names=['users','deposits','withdrawals','tasks','bots'];
  const mapped=[
-  results[0].map(d=>({name:getField(d,['name','full_name','displayName','userName'],'Unnamed user'),email:getField(d,['email','phone','telegram'],d.uid||d.id),id:d.id,amount:formatMoney(d.balance),status:userStatus(d.status),tone:'#e8f1ff',color:'#3974d9',raw:d})),
+  [],
   results[1].map(d=>({name:getField(d,['userName','name','email'],'User '+String(d.uid||'').slice(0,8)),email:getField(d,['type','method'],'Payment')+' · '+getField(d,['senderNumber','number','trxId'],'Details unavailable'),id:d.id,amount:formatMoney(d.amount),status:liveStatus(d.status),tone:'#e8f1ff',color:'#3974d9',raw:d})),
   results[2].map(d=>({name:getField(d,['userName','name','email'],'User '+String(d.uid||'').slice(0,8)),email:getField(d,['type'],'Payout')+' · '+getField(d,['number'],'Number unavailable'),id:d.id,amount:formatMoney(d.amount),status:liveStatus(d.status),tone:'#e7f8ef',color:'#18865b',raw:d})),
   results[3].map(d=>({name:getField(d,['email','userName'],'User '+String(d.uid||'').slice(0,8)),email:getField(d,['taskTitle','taskId'],'Task submission'),id:d.id,amount:formatMoney(d.reward),status:liveStatus(d.status),tone:'#fff1e1',color:'#c27a17',raw:d})),
@@ -105,7 +111,7 @@ async function loadLiveData(){
  ];
  names.forEach((n,i)=>demo[n].splice(0,demo[n].length,...mapped[i]));
  state.codes=results[5].map(d=>({code:getField(d,['code'],d.id),bot:getField(d,['botName','botId'],'Bot package'),created:d.createdAt&&d.createdAt.toDate?d.createdAt.toDate().toLocaleString():'—',expiry:d.expiresAtMs?new Date(Number(d.expiresAtMs)).toLocaleString():'—',status:d.used?'Used':(Number(d.expiresAtMs||0)<Date.now()?'Expired':'Active')}));
- liveCounts={users:results[0].length,deposits:results[1].length,withdrawals:results[2].length,tasks:results[3].length,bots:results[4].length,codes:results[5].length+results[6].length};
+ liveCounts={users:userSummary?.total??null,deposits:results[1].length,withdrawals:results[2].length,tasks:results[3].length,bots:results[4].length,codes:results[5].length+results[6].length};
  rewardCodeRows=results[6];
  liveConnected=true;setConnection('Live Firebase');
  document.getElementById('signOutBtn').style.display='inline-flex';
@@ -123,7 +129,7 @@ document.getElementById('loginForm').addEventListener('submit',async e=>{
 });
 auth.onAuthStateChanged(async user=>{
  const gate=document.getElementById('authGate'),msg=document.getElementById('authMessage');
- if(!user){resetLoginButton();maintenanceLoaded=false;maintenanceValue=false;paymentLoaded=false;paymentConfig={bkashNumber:'',instructions:'',active:false};currentAdmin=null;liveConnected=false;syncPendingIndicator();gate.hidden=false;setConnection('Sign in required');document.getElementById('signOutBtn').style.display='none';return;}
+ if(!user){userSummary=null;resetLoginButton();maintenanceLoaded=false;maintenanceValue=false;paymentLoaded=false;paymentConfig={bkashNumber:'',instructions:'',active:false};currentAdmin=null;liveConnected=false;syncPendingIndicator();gate.hidden=false;setConnection('Sign in required');document.getElementById('signOutBtn').style.display='none';return;}
  try{const profile=await db.collection('users').doc(user.uid).get();if(!profile.exists||profile.data().role!=='admin'){await auth.signOut();msg.textContent='Access denied. This account does not have the admin role in Firestore.';return;}
  currentAdmin=user;loadPaymentSettings();loadMaintenance();gate.hidden=true;document.getElementById('loginSubmit').disabled=false;document.getElementById('loginSubmit').textContent='Sign in securely';await loadLiveData();}
  catch(err){gate.hidden=false;msg.textContent='Could not verify admin role or read Firestore. Check Firestore rules. '+(err.message||'');setConnection('Connection error');}
@@ -169,7 +175,7 @@ document.getElementById('menuToggle').addEventListener('click',()=>{document.get
 
 function buildExportRows(){
  const pending=kind=>demo[kind].filter(r=>r.status==='Pending').length;
- return [['Report','Task Reward Hub Firestore snapshot'],['Export time (UTC)',new Date().toISOString()],['Users',liveCounts.users],['Deposit requests',liveCounts.deposits],['Pending deposit requests',pending('deposits')],['Withdrawal requests',liveCounts.withdrawals],['Pending withdrawal requests',pending('withdrawals')],['Task submissions',liveCounts.tasks],['Pending task submissions',pending('tasks')],['Bot purchase requests',liveCounts.bots],['Pending bot purchase requests',pending('bots')],['Note','Counts from the last successful refresh; not payment totals']];
+ return [['Report','Task Reward Hub Firestore snapshot'],['Export time (UTC)',new Date().toISOString()],['Users',liveCounts.users??'Unavailable'],['Deposit requests',liveCounts.deposits],['Pending deposit requests',pending('deposits')],['Withdrawal requests',liveCounts.withdrawals],['Pending withdrawal requests',pending('withdrawals')],['Task submissions',liveCounts.tasks],['Pending task submissions',pending('tasks')],['Bot purchase requests',liveCounts.bots],['Pending bot purchase requests',pending('bots')],['Note','Counts from the last successful refresh; not payment totals']];
 }
 function pendingRequestCounts(){return ['deposits','withdrawals','tasks','bots'].map(kind=>demo[kind].filter(row=>row.status==='Pending').length);}
 function syncPendingIndicator(){const dot=document.querySelector('#notificationBtn .notification-dot');if(dot)dot.hidden=!liveConnected||pendingRequestCounts().every(n=>n===0);}
@@ -357,9 +363,9 @@ document.getElementById('content').addEventListener('click',async event=>{
 render();
 </script>
 <script src="daily-tasks-admin.js?v=20261028-tasks1"></script>
-<script src="users-admin.js?v=20261028-users1"></script>
+<script src="users-admin.js?v=20261028-user-pages2"></script>
 <script src="overview-core.js?v=20261028-overview1"></script>
-<script src="overview-admin.js?v=20261028-overview1"></script>
+<script src="overview-admin.js?v=20261028-user-pages2"></script>
 </body>
 </html>
 
