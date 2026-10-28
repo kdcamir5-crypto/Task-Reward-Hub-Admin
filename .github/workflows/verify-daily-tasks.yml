@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - index.html
+      - users-admin.js
+      - tests/users-admin.test.cjs
       - tests/admin-login.test.cjs
       - tests/users-filter.test.cjs
       - daily-tasks-core.js
@@ -22,4 +24,5 @@ jobs:
         with:
           node-version: '24'
       - run: node --check daily-tasks-admin.js
-      - run: node --test tests/admin-login.test.cjs tests/users-filter.test.cjs tests/daily-tasks-admin.test.cjs
+      - run: node --check users-admin.js
+      - run: node --test tests/admin-login.test.cjs tests/users-filter.test.cjs tests/users-admin.test.cjs tests/daily-tasks-admin.test.cjs

@@ -177,7 +177,7 @@ function syncLiveUi(){
  if(chartArea)chartArea.innerHTML='<div style="padding:8px 8px 18px">'+[['Users',liveCounts.users],['Deposits',liveCounts.deposits],['Withdrawals',liveCounts.withdrawals],['Task submissions',liveCounts.tasks],['Bot purchases',liveCounts.bots]].map(function(x){return '<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f0f3f8"><span style="width:130px;color:#718099;font-size:12px">'+x[0]+'</span><div style="height:8px;background:#edf4ff;border-radius:8px;flex:1;overflow:hidden"><div style="height:100%;width:'+(Math.min(100,liveCounts.users?x[1]/Math.max(1,liveCounts.users,liveCounts.deposits,liveCounts.withdrawals,liveCounts.tasks,liveCounts.bots)*100:0))+'%;background:#3478f6;border-radius:8px"></div></div><b style="width:45px;text-align:right;font-size:12px">'+x[1]+'</b></div>';}).join('')+'</div>';
  const activityLists=document.querySelectorAll('.dashboard-grid .activity-list');
  if(activityLists.length>0)activityLists[0].innerHTML=[['Deposit requests',demo.deposits.filter(r=>r.status==='Pending').length,'deposits'],['Withdrawals',demo.withdrawals.filter(r=>r.status==='Pending').length,'withdrawals'],['Task submissions',demo.tasks.filter(r=>r.status==='Pending').length,'tasks'],['Bot purchases',demo.bots.filter(r=>r.status==='Pending').length,'bots']].map(function(x){return '<div class="activity"><div class="activity-icon" style="background:#fff5e7;color:#e99a25">'+icon('clock')+'</div><div class="activity-text"><b>'+x[0]+'</b><br>Pending live records</div><div class="activity-time"><button class="btn" data-goto="'+x[2]+'">View '+x[1]+'</button></div></div>';}).join('');
- const summary=document.querySelectorAll('.summary-card');if(summary.length){const page=state.page,arr=demo[page]||[];const first=summary[0].querySelector('strong'),second=summary[1]&&summary[1].querySelector('strong');if(first&&['users','deposits','withdrawals','tasks','bots'].includes(page))first.textContent=arr.length.toLocaleString();if(second&&['users','deposits','withdrawals','tasks','bots'].includes(page))second.textContent=arr.filter(r=>r.status==='Pending').length.toLocaleString();}
+ const summary=document.querySelectorAll('.summary-card:not([data-users-summary])');if(summary.length){const page=state.page,arr=demo[page]||[];const first=summary[0].querySelector('strong'),second=summary[1]&&summary[1].querySelector('strong');if(first&&['users','deposits','withdrawals','tasks','bots'].includes(page))first.textContent=arr.length.toLocaleString();if(second&&['users','deposits','withdrawals','tasks','bots'].includes(page))second.textContent=arr.filter(r=>r.status==='Pending').length.toLocaleString();}
 }
 const renderBeforeLive=render;
 render=function(){renderBeforeLive();if(liveConnected)syncLiveUi();};
@@ -347,6 +347,7 @@ document.getElementById('content').addEventListener('click',async event=>{
 render();
 </script>
 <script src="daily-tasks-admin.js?v=20261028-tasks1"></script>
+<script src="users-admin.js?v=20261028-users1"></script>
 </body>
 </html>
 
