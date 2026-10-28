@@ -10,3 +10,12 @@ Firebase project: `reward-hub-bd`. Sign in with an account whose `users/{uid}.ro
 Before testing, publish the full current `firebase.rules` from the Task-Reward-Hub user repository in Firebase Console → Firestore Database → Rules. GitHub Pages publishing does not deploy these rules.
 
 `bot-purchase-core.js` is mirrored from the user repository; keep both copies in sync. Package prices and return targets follow the user repository README.
+
+
+## Daily Tasks
+
+- The active admin site is https://task-reward-hub-admin.pages.dev/ .
+- Daily Tasks → Add task publishes an HTTPS link, text instructions and BDT reward until the next Bangladesh midnight. Tasks are stored in Firestore, not hardcoded.
+- Delete removes a task for all users while retaining submitted proof and financial history. Expired definitions are removed by the user repository's scheduled cleanup worker.
+- Review shows written proof. Approve atomically credits the main balance once; Reject requires a reason and pays nothing. Proof can be reviewed after deletion or expiry.
+- Publish the latest user-repository `firebase.rules` before using this flow. The Node checks in `.github/workflows/verify-daily-tasks.yml` test the admin interface; Firestore transaction tests live in Task-Reward-Hub.
